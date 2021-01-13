@@ -7,21 +7,21 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/colinmarc/hdfs/v2"
+	"github.com/nikhil-salgaonkar/hdfs/v2"
 )
 
 func put(args []string) {
-	if len(args) != 2 {
+	if len(args) != 3 {
 		printHelp()
 	}
-
-	dests, nn, err := normalizePaths(args[1:])
+	replication := int(args[0])
+	dests, nn, err := normalizePaths(args[2:])
 	if err != nil {
 		fatal(err)
 	}
 
 	dest := dests[0]
-	source, err := filepath.Abs(args[0])
+	source, err := filepath.Abs(args[1])
 	if err != nil {
 		fatal(err)
 	}
@@ -34,7 +34,7 @@ func put(args []string) {
 	if filepath.Base(source) == "-" {
 		putFromStdin(client, dest)
 	} else {
-		putFromFile(client, source, dest)
+		putFromFile(client, source, dest, replication)
 	}
 }
 
@@ -64,7 +64,7 @@ func putFromStdin(client *hdfs.Client, dest string) {
 	io.Copy(writer, os.Stdin)
 }
 
-func putFromFile(client *hdfs.Client, source string, dest string) {
+func putFromFile(client *hdfs.Client, source string, dest string, replication int) {
 	// If the destination is an existing directory, place it inside. Otherwise,
 	// the destination is really the parent directory, and we need to rename the
 	// source directory as we copy.
@@ -96,7 +96,7 @@ func putFromFile(client *hdfs.Client, source string, dest string) {
 		if fi.IsDir() {
 			client.Mkdir(fullDest, mode)
 		} else {
-			writer, err := client.Create(fullDest)
+			writer, err := client.CreateWithReplication(fullDest, replication)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return nil
